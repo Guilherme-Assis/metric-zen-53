@@ -7,6 +7,10 @@ import { MetricCard } from '@/components/dashboard/MetricCard';
 import { MetricCardSkeleton } from '@/components/dashboard/MetricCardSkeleton';
 import { ChartCard } from '@/components/dashboard/ChartCard';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { DetailModal } from '@/components/dashboard/DetailModal';
+import { ChartsSection } from '@/components/dashboard/ChartsSection';
+import { ComparisonSection } from '@/components/dashboard/ComparisonSection';
+import { YearlyTable } from '@/components/dashboard/YearlyTable';
 import { clientsService, dashboardService } from '@/services/supabase';
 import { formatCurrency, formatDate, formatPercentage } from '@/utils/formatters';
 import { format, addMonths, subMonths } from 'date-fns';
@@ -15,6 +19,12 @@ export default function ClientDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [selectedMonth, setSelectedMonth] = useState(() => format(new Date(), 'yyyy-MM-01'));
+  const [detailModal, setDetailModal] = useState<{
+    open: boolean;
+    title: string;
+    value: string | number;
+    details: any;
+  }>({ open: false, title: '', value: '', details: {} });
 
   // Fetch client data
   const { data: client, isLoading: loadingClient } = useQuery({
@@ -50,11 +60,17 @@ export default function ClientDetailPage() {
   });
 
   const handlePreviousMonth = () => {
-    setSelectedMonth(prev => format(subMonths(new Date(prev), 1), 'yyyy-MM-01'));
+    const newMonth = format(subMonths(new Date(selectedMonth), 1), 'yyyy-MM-01');
+    setSelectedMonth(newMonth);
   };
 
   const handleNextMonth = () => {
-    setSelectedMonth(prev => format(addMonths(new Date(prev), 1), 'yyyy-MM-01'));
+    const newMonth = format(addMonths(new Date(selectedMonth), 1), 'yyyy-MM-01');
+    setSelectedMonth(newMonth);
+  };
+
+  const showMetricDetail = (title: string, value: string | number, details: any) => {
+    setDetailModal({ open: true, title, value, details });
   };
 
   const monthDisplay = format(new Date(selectedMonth), 'MMMM yyyy');
@@ -133,96 +149,219 @@ export default function ClientDetailPage() {
           <>
             {/* Client Metrics Row */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-              <MetricCard
-                title="Tempo como Cliente"
-                value={`${Math.floor((new Date().getTime() - new Date(client.started_at).getTime()) / (1000 * 60 * 60 * 24 * 30))} meses`}
-                icon={Users}
-                variant="default"
-              />
-              <MetricCard
-                title="Mês de Adesão"
-                value={formatDate(client.started_at)}
-                icon={Calendar}
-                variant="default"
-              />
-              <MetricCard
-                title="Status"
-                value={client.is_active ? 'Ativo' : 'Inativo'}
-                icon={Users}
-                variant={client.is_active ? 'success' : 'destructive'}
-              />
+              <div 
+                className="cursor-pointer transition-transform hover:scale-105"
+                onClick={() => showMetricDetail(
+                  "Tempo como Cliente",
+                  `${Math.floor((new Date().getTime() - new Date(client.started_at).getTime()) / (1000 * 60 * 60 * 24 * 30))} meses`,
+                  {
+                    description: "Mostra há quantos meses este cliente está ativo no sistema.",
+                    formula: "Data Atual - Data de Início do Cliente",
+                    explanation: "Clientes com mais tempo tendem a ter maior valor de vida útil (LTV) e são importantes para a estabilidade do negócio."
+                  }
+                )}
+              >
+                <MetricCard
+                  title="Tempo como Cliente"
+                  value={`${Math.floor((new Date().getTime() - new Date(client.started_at).getTime()) / (1000 * 60 * 60 * 24 * 30))} meses`}
+                  icon={Users}
+                  variant="default"
+                />
+              </div>
+              <div 
+                className="cursor-pointer transition-transform hover:scale-105"
+                onClick={() => showMetricDetail(
+                  "Mês de Adesão",
+                  formatDate(client.started_at),
+                  {
+                    description: "Data em que o cliente iniciou o relacionamento comercial.",
+                    explanation: "Importante para entender sazonalidade e campanhas que trouxeram este cliente."
+                  }
+                )}
+              >
+                <MetricCard
+                  title="Mês de Adesão"
+                  value={formatDate(client.started_at)}
+                  icon={Calendar}
+                  variant="default"
+                />
+              </div>
+              <div 
+                className="cursor-pointer transition-transform hover:scale-105"
+                onClick={() => showMetricDetail(
+                  "Status do Cliente",
+                  client.is_active ? 'Ativo' : 'Inativo',
+                  {
+                    description: "Indica se o cliente está atualmente ativo ou inativo no sistema.",
+                    explanation: "Clientes ativos contribuem para a receita corrente. Clientes inativos podem indicar oportunidades de reativação."
+                  }
+                )}
+              >
+                <MetricCard
+                  title="Status"
+                  value={client.is_active ? 'Ativo' : 'Inativo'}
+                  icon={Users}
+                  variant={client.is_active ? 'success' : 'destructive'}
+                />
+              </div>
             </div>
 
             {/* Financial Metrics Row */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-              <MetricCard
-                title="Entradas do Mês"
-                value={formatCurrency(metrics.entries)}
-                icon={TrendingUp}
-                variant="success"
-              />
-              <MetricCard
-                title="Saídas do Mês"
-                value={formatCurrency(metrics.exits)}
-                icon={DollarSign}
-                variant="destructive"
-              />
-              <MetricCard
-                title="Saldo do Mês"
-                value={formatCurrency(metrics.net)}
-                icon={DollarSign}
-                variant={metrics.net >= 0 ? 'success' : 'destructive'}
-              />
+              <div 
+                className="cursor-pointer transition-transform hover:scale-105"
+                onClick={() => showMetricDetail(
+                  "Entradas do Mês",
+                  formatCurrency(metrics.entries),
+                  {
+                    description: "Total de vendas/receitas registradas no mês selecionado.",
+                    formula: "Soma de todas as vendas do mês",
+                    explanation: "Representa todo o dinheiro que entrou através de vendas. É o principal indicador de performance comercial."
+                  }
+                )}
+              >
+                <MetricCard
+                  title="Entradas do Mês"
+                  value={formatCurrency(metrics.entries)}
+                  icon={TrendingUp}
+                  variant="success"
+                />
+              </div>
+              <div 
+                className="cursor-pointer transition-transform hover:scale-105"
+                onClick={() => showMetricDetail(
+                  "Saídas do Mês",
+                  formatCurrency(metrics.exits),
+                  {
+                    description: "Total de despesas/custos registrados no mês selecionado.",
+                    formula: "Soma de todas as despesas do mês",
+                    explanation: "Representa todos os gastos operacionais. Controlar as saídas é fundamental para manter a rentabilidade."
+                  }
+                )}
+              >
+                <MetricCard
+                  title="Saídas do Mês"
+                  value={formatCurrency(metrics.exits)}
+                  icon={DollarSign}
+                  variant="destructive"
+                />
+              </div>
+              <div 
+                className="cursor-pointer transition-transform hover:scale-105"
+                onClick={() => showMetricDetail(
+                  "Saldo do Mês",
+                  formatCurrency(metrics.net),
+                  {
+                    description: "Resultado líquido do mês (Entradas - Saídas).",
+                    formula: "Entradas - Saídas",
+                    breakdown: [
+                      { label: "Entradas", value: metrics.entries },
+                      { label: "Saídas", value: metrics.exits }
+                    ],
+                    explanation: "O saldo líquido mostra se o mês foi lucrativo. Valores positivos indicam lucro, negativos indicam prejuízo."
+                  }
+                )}
+              >
+                <MetricCard
+                  title="Saldo do Mês"
+                  value={formatCurrency(metrics.net)}
+                  icon={DollarSign}
+                  variant={metrics.net >= 0 ? 'success' : 'destructive'}
+                />
+              </div>
             </div>
 
             {/* Performance Metrics Row */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-              <MetricCard
-                title="Ticket Médio"
-                value={formatCurrency(metrics.avg_ticket)}
-                icon={ShoppingCart}
-                variant="primary"
-              />
-              <MetricCard
-                title="Quantidade de Vendas"
-                value={metrics.sales_count}
-                icon={ShoppingCart}
-                variant="primary"
-              />
-              <MetricCard
-                title={`Meta (${metrics.goal_pct ? formatPercentage(metrics.goal_pct) : '0%'})`}
-                value={formatCurrency(metrics.goal_amount)}
-                icon={Target}
-                variant={metrics.goal_status === 'Atingida' ? 'success' : 'warning'}
-              />
+              <div 
+                className="cursor-pointer transition-transform hover:scale-105"
+                onClick={() => showMetricDetail(
+                  "Ticket Médio",
+                  formatCurrency(metrics.avg_ticket),
+                  {
+                    description: "Valor médio por venda realizada no mês.",
+                    formula: "Total de Vendas ÷ Quantidade de Vendas",
+                    breakdown: [
+                      { label: "Total de Vendas", value: metrics.entries },
+                      { label: "Quantidade de Vendas", value: metrics.sales_count }
+                    ],
+                    explanation: "O ticket médio ajuda a entender o valor típico de cada transação. Aumentar o ticket médio é uma estratégia para crescer a receita."
+                  }
+                )}
+              >
+                <MetricCard
+                  title="Ticket Médio"
+                  value={formatCurrency(metrics.avg_ticket)}
+                  icon={ShoppingCart}
+                  variant="primary"
+                />
+              </div>
+              <div 
+                className="cursor-pointer transition-transform hover:scale-105"
+                onClick={() => showMetricDetail(
+                  "Quantidade de Vendas",
+                  metrics.sales_count.toString(),
+                  {
+                    description: "Número total de transações/vendas realizadas no mês.",
+                    explanation: "A quantidade de vendas mostra a atividade comercial. Combinado com o ticket médio, determina a receita total."
+                  }
+                )}
+              >
+                <MetricCard
+                  title="Quantidade de Vendas"
+                  value={metrics.sales_count}
+                  icon={ShoppingCart}
+                  variant="primary"
+                />
+              </div>
+              <div 
+                className="cursor-pointer transition-transform hover:scale-105"
+                onClick={() => showMetricDetail(
+                  "Meta do Mês",
+                  formatCurrency(metrics.goal_amount),
+                  {
+                    description: `Meta estabelecida para o mês. Status: ${metrics.goal_status}`,
+                    formula: `${metrics.goal_pct?.toFixed(1) || 0}% da meta atingida`,
+                    breakdown: [
+                      { label: "Meta estabelecida", value: metrics.goal_amount },
+                      { label: "Valor atingido", value: metrics.entries }
+                    ],
+                    explanation: "As metas ajudam a direcionar esforços e medir performance. Atingir as metas consistentemente indica um negócio saudável."
+                  }
+                )}
+              >
+                <MetricCard
+                  title={`Meta (${metrics.goal_pct ? formatPercentage(metrics.goal_pct) : '0%'})`}
+                  value={formatCurrency(metrics.goal_amount)}
+                  icon={Target}
+                  variant={metrics.goal_status === 'Atingida' ? 'success' : 'warning'}
+                />
+              </div>
             </div>
           </>
         ) : null}
 
         {/* Charts Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          <ChartCard title="Vendas vs Despesas">
-            <div className="flex items-center justify-center h-full text-foreground-muted">
-              Gráfico em desenvolvimento
-            </div>
-          </ChartCard>
-          
-          <ChartCard title="Despesas por Categoria">
-            <div className="space-y-4">
-              {expensesByCategory.map((item, index) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                  <span className="text-foreground">{item.category}</span>
-                  <span className="font-semibold text-foreground">{formatCurrency(item.total)}</span>
-                </div>
-              ))}
-              {expensesByCategory.length === 0 && (
-                <div className="text-center text-foreground-muted py-8">
-                  Nenhuma despesa registrada neste mês
-                </div>
-              )}
-            </div>
-          </ChartCard>
-        </div>
+        <ChartsSection
+          selectedMonth={selectedMonth}
+          sales={sales}
+          expenses={expenses}
+          expensesByCategory={expensesByCategory}
+          metrics={metrics}
+        />
+
+        {/* Comparison Section */}
+        <ComparisonSection
+          clientId={id!}
+          currentMonth={selectedMonth}
+          currentMetrics={metrics}
+        />
+
+        {/* Yearly Table */}
+        <YearlyTable
+          clientId={id!}
+          currentYear={new Date(selectedMonth).getFullYear()}
+        />
 
         {/* Data Tables */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -288,6 +427,15 @@ export default function ClientDetailPage() {
             </div>
           </ChartCard>
         </div>
+
+        {/* Detail Modal */}
+        <DetailModal
+          open={detailModal.open}
+          onOpenChange={(open) => setDetailModal(prev => ({ ...prev, open }))}
+          title={detailModal.title}
+          value={detailModal.value}
+          details={detailModal.details}
+        />
       </div>
     </div>
   );
