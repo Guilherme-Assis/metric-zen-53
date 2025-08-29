@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Calendar, TrendingUp, DollarSign, Target, Users, ShoppingCart } from 'lucide-react';
+import { ArrowLeft, Calendar, TrendingUp, DollarSign, Target, Users, ShoppingCart, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { MetricCard } from '@/components/dashboard/MetricCard';
 import { MetricCardSkeleton } from '@/components/dashboard/MetricCardSkeleton';
@@ -10,6 +10,7 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { DetailModal } from '@/components/dashboard/DetailModal';
 import { ChartsSection } from '@/components/dashboard/ChartsSection';
 import { ComparisonSection } from '@/components/dashboard/ComparisonSection';
+import { AddDataModal } from '@/components/dashboard/AddDataModal';
 import { YearlyTable } from '@/components/dashboard/YearlyTable';
 import { clientsService, dashboardService } from '@/services/supabase';
 import { formatCurrency, formatDate, formatPercentage } from '@/utils/formatters';
@@ -18,6 +19,7 @@ import { format, addMonths, subMonths } from 'date-fns';
 export default function ClientDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [openAdd, setOpenAdd] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(() => format(new Date(), 'yyyy-MM-01'));
   const [detailModal, setDetailModal] = useState<{
     open: boolean;
@@ -73,6 +75,7 @@ export default function ClientDetailPage() {
     setDetailModal({ open: true, title, value, details });
   };
 
+
   const monthDisplay = format(new Date(selectedMonth), 'MMMM yyyy');
 
   if (loadingClient) {
@@ -99,15 +102,15 @@ export default function ClientDetailPage() {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex items-center gap-4 mb-8">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             size="sm"
             onClick={() => navigate('/clients')}
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Voltar
           </Button>
-          
+
           <div className="flex-1">
             <h1 className="text-3xl font-bold text-foreground">{client.name}</h1>
             <p className="text-foreground-muted">
@@ -118,22 +121,29 @@ export default function ClientDetailPage() {
 
         {/* Month Navigation */}
         <div className="card-glass p-4 rounded-xl mb-8">
-          <div className="flex items-center justify-between">
-            <Button variant="outline" size="sm" onClick={handlePreviousMonth}>
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Mês Anterior
-            </Button>
-            
+          <div className="flex items-center justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-foreground-muted" />
-              <span className="text-lg font-semibold text-foreground capitalize">
-                {monthDisplay}
-              </span>
+              <Button variant="outline" size="sm" onClick={handlePreviousMonth}>
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Mês Anterior
+              </Button>
+
+              <div className="flex items-center gap-2">
+                <Calendar className="w-5 h-5 text-foreground-muted" />
+                <span className="text-lg font-semibold text-foreground capitalize">
+          {monthDisplay}
+        </span>
+              </div>
+
+              <Button variant="outline" size="sm" onClick={handleNextMonth}>
+                Próximo Mês
+                <Calendar className="w-4 h-4 ml-2" />
+              </Button>
             </div>
-            
-            <Button variant="outline" size="sm" onClick={handleNextMonth}>
-              Próximo Mês
-              <Calendar className="w-4 h-4 ml-2" />
+
+            <Button onClick={() => setOpenAdd(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              Adicionar Dados
             </Button>
           </div>
         </div>
@@ -149,7 +159,7 @@ export default function ClientDetailPage() {
           <>
             {/* Client Metrics Row */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-              <div 
+              <div
                 className="cursor-pointer transition-transform hover:scale-105"
                 onClick={() => showMetricDetail(
                   "Tempo como Cliente",
@@ -168,7 +178,7 @@ export default function ClientDetailPage() {
                   variant="default"
                 />
               </div>
-              <div 
+              <div
                 className="cursor-pointer transition-transform hover:scale-105"
                 onClick={() => showMetricDetail(
                   "Mês de Adesão",
@@ -186,7 +196,7 @@ export default function ClientDetailPage() {
                   variant="default"
                 />
               </div>
-              <div 
+              <div
                 className="cursor-pointer transition-transform hover:scale-105"
                 onClick={() => showMetricDetail(
                   "Status do Cliente",
@@ -208,7 +218,7 @@ export default function ClientDetailPage() {
 
             {/* Financial Metrics Row */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-              <div 
+              <div
                 className="cursor-pointer transition-transform hover:scale-105"
                 onClick={() => showMetricDetail(
                   "Entradas do Mês",
@@ -227,10 +237,10 @@ export default function ClientDetailPage() {
                   variant="success"
                 />
               </div>
-              <div 
+              <div
                 className="cursor-pointer transition-transform hover:scale-105"
                 onClick={() => showMetricDetail(
-                  "Saídas do Mês",
+                  "Despesas do Mês",
                   formatCurrency(metrics.exits),
                   {
                     description: "Total de despesas/custos registrados no mês selecionado.",
@@ -240,23 +250,23 @@ export default function ClientDetailPage() {
                 )}
               >
                 <MetricCard
-                  title="Saídas do Mês"
+                  title="Despesas do Mês"
                   value={formatCurrency(metrics.exits)}
                   icon={DollarSign}
                   variant="destructive"
                 />
               </div>
-              <div 
+              <div
                 className="cursor-pointer transition-transform hover:scale-105"
                 onClick={() => showMetricDetail(
                   "Saldo do Mês",
                   formatCurrency(metrics.net),
                   {
-                    description: "Resultado líquido do mês (Entradas - Saídas).",
+                    description: "Resultado líquido do mês (Entradas - Despesas).",
                     formula: "Entradas - Saídas",
                     breakdown: [
                       { label: "Entradas", value: metrics.entries },
-                      { label: "Saídas", value: metrics.exits }
+                      { label: "Despesas", value: metrics.exits }
                     ],
                     explanation: "O saldo líquido mostra se o mês foi lucrativo. Valores positivos indicam lucro, negativos indicam prejuízo."
                   }
@@ -273,7 +283,7 @@ export default function ClientDetailPage() {
 
             {/* Performance Metrics Row */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-              <div 
+              <div
                 className="cursor-pointer transition-transform hover:scale-105"
                 onClick={() => showMetricDetail(
                   "Ticket Médio",
@@ -296,7 +306,7 @@ export default function ClientDetailPage() {
                   variant="primary"
                 />
               </div>
-              <div 
+              <div
                 className="cursor-pointer transition-transform hover:scale-105"
                 onClick={() => showMetricDetail(
                   "Quantidade de Vendas",
@@ -314,7 +324,7 @@ export default function ClientDetailPage() {
                   variant="primary"
                 />
               </div>
-              <div 
+              <div
                 className="cursor-pointer transition-transform hover:scale-105"
                 onClick={() => showMetricDetail(
                   "Meta do Mês",
@@ -435,6 +445,13 @@ export default function ClientDetailPage() {
           title={detailModal.title}
           value={detailModal.value}
           details={detailModal.details}
+        />
+
+        <AddDataModal
+            open={openAdd}
+            onOpenChange={setOpenAdd}
+            clientId={id!}
+            monthISO={selectedMonth}
         />
       </div>
     </div>

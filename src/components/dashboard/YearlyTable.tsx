@@ -15,7 +15,7 @@ interface YearlyTableProps {
 
 export function YearlyTable({ clientId, currentYear }: YearlyTableProps) {
   const [selectedYear, setSelectedYear] = useState(currentYear);
-  
+
   // Generate all months of the selected year
   const yearStart = startOfYear(new Date(selectedYear, 0, 1));
   const yearEnd = endOfYear(new Date(selectedYear, 0, 1));
@@ -54,12 +54,13 @@ export function YearlyTable({ clientId, currentYear }: YearlyTableProps) {
     { entries: 0, exits: 0, net: 0, salesCount: 0, months: 0 }
   );
 
-  const avgTicket = totals.months > 0 && totals.salesCount > 0 
-    ? totals.entries / totals.salesCount 
+  const avgTicket = totals.months > 0 && totals.salesCount > 0
+    ? totals.entries / totals.salesCount
     : 0;
 
   return (
-    <ChartCard 
+    <ChartCard
+      className={"mb-8"}
       title={`Resumo Anual - ${selectedYear}`}
       actions={
         <div className="flex items-center gap-2">
@@ -108,7 +109,7 @@ export function YearlyTable({ clientId, currentYear }: YearlyTableProps) {
         </div>
 
         {/* Monthly Table */}
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto mb-8">
           <table className="w-full text-sm">
             <thead className="border-b border-border">
               <tr>
